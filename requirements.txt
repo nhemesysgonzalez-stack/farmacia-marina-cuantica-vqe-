@@ -2,3 +2,5 @@ streamlit
 qiskit
 scipy
 matplotlib
+pandas
+openpyxl
