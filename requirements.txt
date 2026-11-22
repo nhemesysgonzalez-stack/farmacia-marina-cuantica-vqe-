@@ -1,0 +1,4 @@
+streamlit
+qiskit
+scipy
+matplotlib
