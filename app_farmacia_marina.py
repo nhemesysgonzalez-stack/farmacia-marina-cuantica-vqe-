@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
 from qiskit import QuantumCircuit
 from qiskit.circuit import ParameterVector
@@ -6,86 +7,160 @@ from qiskit.quantum_info import SparsePauliOp
 from qiskit.primitives import StatevectorEstimator
 from scipy.optimize import minimize
 
-# --- CARA A: DISEÑO DE LA PANTALLA WEB ---
-st.set_page_config(page_title="Farmacia Marina Cuántica", page_icon="🌊")
-st.title("🌊 Farmacia Marina: Simulador Molecular VQE")
-st.write("Prototipo de biotecnología azul basado en IBM Qiskit para analizar la estabilidad energética de compuestos bioactivos del Mediterráneo y el Delta del Ebro.")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Farmacia Marina Cuántica", page_icon="🌊", layout="wide")
+st.title("🌊 Farmacia Marina: Simulador Molecular Cuántico (VQE)")
+st.write("Herramienta de biotecnología azul basada en **IBM Qiskit** para evaluar la estabilidad energética de compuestos bioactivos marinos mediante datos propios o simulaciones.")
 
-with st.expander("ℹ️ ¿Cómo funciona este simulador cuántico?", expanded=True):
+with st.expander("ℹ️ Guía rápida para investigadores y empresas", expanded=False):
     st.markdown("""
-    * **Objetivo:** Evaluar si una molécula natural extraída de microalgas o bacterias marinas es energéticamente estable para desarrollarla como antibiótico o activo regenerador.
-    * **Algoritmo VQE:** Combina un circuito cuántico parametrizado (**Ansatz**) con un optimizador clásico para encontrar el estado fundamental (mínima energía) de la molécula.
+    * **¿Qué hace esta herramienta?** Calcula el estado fundamental (mínima energía) de enlaces moleculares mediante el algoritmo híbrido **VQE** (*Variational Quantum Eigensolver*). Cuanto más negativa sea la energía (en Hartrees), más estable es el compuesto.
+    * **3 Modos de uso (Menú izquierdo):** Puedes probar compuestos de referencia del Mediterráneo, introducir tus propios parámetros químicos manualmente o subir un archivo **CSV / Excel** para analizar múltiples moléculas en lote.
     """)
 
-# Selector de compuesto marino en la barra lateral
-st.sidebar.header("🧬 Selección de Bioactivo Marino")
-compuesto = st.sidebar.selectbox(
-    "Elige el extracto a analizar:",
+# --- FUNCIÓN DEL MOTOR CUÁNTICO VQE ---
+def ejecutar_vqe_molecula(energia_base, interaccion_xx):
+    hamiltoniano = SparsePauliOp.from_list([
+        ("II", float(energia_base)),
+        ("IZ", 0.39),
+        ("ZI", -0.39),
+        ("ZZ", -0.01),
+        ("XX", float(interaccion_xx))
+    ])
+    theta_0, theta_1 = ParameterVector('theta', 2)
+    qc = QuantumCircuit(2)
+    qc.ry(theta_0, 0)
+    qc.ry(theta_1, 1)
+    qc.cx(0, 1)
+    
+    estimador = StatevectorEstimator()
+    historial = []
+    
+    def calcular_energia(valores):
+        trabajo = estimador.run([(qc, hamiltoniano, valores)])
+        energia = float(next(iter(trabajo.result())).data.evs)
+        historial.append(energia)
+        return energia
+        
+    resultado = minimize(calcular_energia, [0.0, 0.0], method="COBYLA")
+    return round(resultado.fun, 4), historial
+
+# --- MENÚ LATERAL: MODO DE ENTRADA DE DATOS ---
+st.sidebar.header("🧬 Fuente de Datos Moleculares")
+modo_entrada = st.sidebar.radio(
+    "Elige cómo introducir los datos:",
     (
-        "Alcaloide de Microalga (Delta del Ebro)",
-        "Péptido Antimicrobiano (Costa Daurada)",
-        "Polifenol Antioxidante (Posidonia Mediterránea)"
+        "1. Catálogo de Referencia (Mediterráneo)",
+        "2. Control Numérico Manual",
+        "3. Subir Archivo Propio (CSV / Excel)"
     )
 )
 
-# Ajustamos ligeramente el enlace cuántico según el compuesto elegido
-if "Alcaloide" in compuesto:
-    interaccion_xx = 0.18
-    energia_base = -1.05
-elif "Péptido" in compuesto:
-    interaccion_xx = 0.28
-    energia_base = -1.15
-else:
-    interaccion_xx = 0.12
-    energia_base = -0.95
-
-if st.button("🚀 Ejecutar Simulación Molecular VQE"):
-    with st.spinner("Optimizando ángulos cuánticos (theta) en el circuito..."):
-        
-        # --- CARA B: MOTOR CUÁNTICO VQE (QISKIT) ---
-        hamiltoniano = SparsePauliOp.from_list([
-            ("II", energia_base),
-            ("IZ", 0.39),
-            ("ZI", -0.39),
-            ("ZZ", -0.01),
-            ("XX", interaccion_xx)
-        ])
-        
-        theta_0, theta_1 = ParameterVector('theta', 2)
-        qc = QuantumCircuit(2)
-        qc.ry(theta_0, 0)
-        qc.ry(theta_1, 1)
-        qc.cx(0, 1)
-        
-        estimador = StatevectorEstimator()
-        historial_energia = []
-        
-        def calcular_energia(valores):
-            trabajo = estimador.run([(qc, hamiltoniano, valores)])
-            energia = float(next(iter(trabajo.result())).data.evs)
-            historial_energia.append(energia)
-            return energia
-            
-        resultado = minimize(calcular_energia, [0.0, 0.0], method="COBYLA")
-        energia_minima = round(resultado.fun, 4)
-        
-        # --- RESULTADOS Y GRÁFICA EN PANTALLA ---
-        st.subheader(f"🔬 Análisis de Estabilidad: {compuesto}")
-        
-        col1, col2 = st.columns(2)
-        col1.metric("Energía Mínima (Estado Fundamental)", f"{energia_minima} Hartrees")
-        col2.metric("Iteraciones del Optimizador", f"{len(historial_energia)} pasos")
-        
-        if energia_minima < -1.10:
-            st.success("✅ **MOLÉCULA ALTAMENTE ESTABLE:** Candidata óptima para ensayos de laboratorio biotecnológico.")
+# =========================================================
+# MODO 1 Y MODO 2: ANÁLISIS INDIVIDUAL
+# =========================================================
+if modo_entrada != "3. Subir Archivo Propio (CSV / Excel)":
+    if modo_entrada == "1. Catálogo de Referencia (Mediterráneo)":
+        compuesto = st.sidebar.selectbox(
+            "Selecciona un extracto marino:",
+            (
+                "Alcaloide de Microalga (Delta del Ebro)",
+                "Péptido Antimicrobiano (Costa Daurada)",
+                "Polifenol Antioxidante (Posidonia Mediterránea)"
+            )
+        )
+        if "Alcaloide" in compuesto:
+            energia_base, interaccion_xx = -1.05, 0.18
+        elif "Péptido" in compuesto:
+            energia_base, interaccion_xx = -1.15, 0.28
         else:
-            st.info("ℹ️ **ESTABILIDAD MODERADA:** Se recomienda optimizar la estructura química antes de sintetizar.")
+            energia_base, interaccion_xx = -0.95, 0.12
+    else:
+        st.sidebar.subheader("🎛️ Parámetros Químicos Manuales")
+        compuesto = st.sidebar.text_input("Nombre de tu molécula:", "Compuesto_Lab_01")
+        energia_base = st.sidebar.number_input("Energía Base del enlace (Hartrees):", min_value=-5.0, max_value=0.0, value=-1.10, step=0.05)
+        interaccion_xx = st.sidebar.slider("Fuerza de Interacción Cuántica (XX):", min_value=0.01, max_value=1.00, value=0.22, step=0.01)
+
+    st.subheader(f"🔬 Molécula seleccionada: {compuesto}")
+    st.caption(f"Parámetros de entrada -> Energía Base: `{energia_base}` | Interacción Cuántica XX: `{interaccion_xx}`")
+
+    if st.button("🚀 Ejecutar Simulación Molecular VQE"):
+        with st.spinner("Optimizando ángulos cuánticos (theta) en IBM Qiskit..."):
+            energia_min, historial = ejecutar_vqe_molecula(energia_base, interaccion_xx)
             
-        # Dibujo de la gráfica de convergencia VQE
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.plot(historial_energia, marker='o', color='#008080', linewidth=2)
-        ax.set_title("Convergencia Cuántica VQE hacia la Estabilidad Molecular")
-        ax.set_xlabel("Iteraciones del Optimizador")
-        ax.set_ylabel("Energía (Hartrees)")
-        ax.grid(True, linestyle='--', alpha=0.6)
-        st.pyplot(fig)
+            col1, col2 = st.columns(2)
+            col1.metric("Energía Mínima (Estabilidad)", f"{energia_min} Hartrees")
+            col2.metric("Iteraciones del Optimizador", f"{len(historial)} pasos")
+            
+            if energia_min < -1.10:
+                st.success("✅ **MOLÉCULA ALTAMENTE ESTABLE:** Candidata óptima para ensayos de laboratorio.")
+            else:
+                st.info("ℹ️ **ESTABILIDAD MODERADA:** Se recomienda ajustar la estructura química.")
+                
+            fig, ax = plt.subplots(figsize=(8, 3.5))
+            ax.plot(historial, marker='o', color='#008080', linewidth=2)
+            ax.set_title("Convergencia Cuántica VQE hacia el Estado Fundamental")
+            ax.set_xlabel("Iteraciones")
+            ax.set_ylabel("Energía (Hartrees)")
+            ax.grid(True, linestyle='--', alpha=0.6)
+            st.pyplot(fig)
+
+# =========================================================
+# MODO 3: SUBIDA DE ARCHIVO CSV O EXCEL EN LOTE
+# =========================================================
+else:
+    st.subheader("📂 Análisis en Lote mediante Archivo (CSV o Excel)")
+    st.write("Sube tu tabla de laboratorio con las columnas: `Compuesto`, `Energia_Base` y `Interaccion_XX`.")
+    
+    # Botón para descargar plantilla de ejemplo
+    plantilla = pd.DataFrame({
+        "Compuesto": ["Extracto_Alga_01", "Bioactivo_Esponja_02", "Enzima_Marina_03"],
+        "Energia_Base": [-1.05, -1.25, -0.90],
+        "Interaccion_XX": [0.18, 0.30, 0.15]
+    })
+    st.download_button(
+        label="📥 Descargar plantilla CSV de ejemplo",
+        data=plantilla.to_csv(index=False).encode('utf-8'),
+        file_name="plantilla_moleculas_marinas.csv",
+        mime="text/csv"
+    )
+    
+    archivo_subido = st.file_uploader("Arrastra aquí tu archivo CSV o Excel (.xlsx)", type=["csv", "xlsx"])
+    
+    if archivo_subido is not None:
+        if archivo_subido.name.endswith('.csv'):
+            df = pd.read_csv(archivo_subido)
+        else:
+            df = pd.read_excel(archivo_subido)
+            
+        st.write("Vista previa de tus datos cargados:", df)
+        
+        if st.button("🚀 Analizar Todas las Moléculas con VQE"):
+            resultados_lote = []
+            barra = st.progress(0)
+            total_filas = len(df)
+            
+            for idx, fila in df.iterrows():
+                e_min, pasos = ejecutar_vqe_molecula(fila["Energia_Base"], fila["Interaccion_XX"])
+                estado = "Alta Estabilidad" if e_min < -1.10 else "Estabilidad Moderada"
+                resultados_lote.append({
+                    "Compuesto": fila["Compuesto"],
+                    "Energia_Minima_Hartrees": e_min,
+                    "Pasos_Optimizacion": len(pasos),
+                    "Diagnostico": estado
+                })
+                barra.progress((idx + 1) / total_filas)
+                
+            df_final = pd.DataFrame(resultados_lote).sort_values(by="Energia_Minima_Hartrees")
+            st.success("✅ Análisis cuántico completado. Ranking ordenado de mayor a menor estabilidad:")
+            st.dataframe(df_final, use_container_width=True)
+
+# --- SECCIÓN DE FEEDBACK Y CONTACTO ---
+st.divider()
+st.subheader("💬 Valoración y Contacto Profesional")
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    if st.button("👍 ¡Esta herramienta me ha resultado útil!"):
+        st.toast("¡Muchas gracias por tu valoración! Seguimos innovando en Economía Azul.")
+with col_f2:
+    st.markdown("¿Quieres comentar cómo está desarrollado o proponer una colaboración? **[Déjame un mensaje en GitHub Discussions](https://github.com)**.")
