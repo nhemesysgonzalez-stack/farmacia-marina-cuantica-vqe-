@@ -112,7 +112,6 @@ else:
     st.subheader("📂 Análisis en Lote mediante Archivo (CSV o Excel)")
     st.write("Sube tu tabla de laboratorio con las columnas: `Compuesto`, `Energia_Base` y `Interaccion_XX`.")
     
-    # Botón para descargar plantilla de ejemplo
     plantilla = pd.DataFrame({
         "Compuesto": ["Extracto_Alga_01", "Bioactivo_Esponja_02", "Enzima_Marina_03"],
         "Energia_Base": [-1.05, -1.25, -0.90],
@@ -141,10 +140,10 @@ else:
             total_filas = len(df)
             
             for idx, fila in df.iterrows():
-                e_min, pasos = ejecutar_vqe_molecula(fila["Energia_Base"], fila["Interaccion_XX"])
+                e_min, pasos = ejecutar_vqe_molecula(fila.get("Energia_Base"), fila.get("Interaccion_XX"))
                 estado = "Alta Estabilidad" if e_min < -1.10 else "Estabilidad Moderada"
                 resultados_lote.append({
-                    "Compuesto": fila["Compuesto"],
+                    "Compuesto": fila.get("Compuesto"),
                     "Energia_Minima_Hartrees": e_min,
                     "Pasos_Optimizacion": len(pasos),
                     "Diagnostico": estado
@@ -163,5 +162,5 @@ with col_f1:
     if st.button("👍 ¡Esta herramienta me ha resultado útil!"):
         st.toast("¡Muchas gracias por tu valoración! Seguimos innovando en Economía Azul.")
 with col_f2:
-       st.markdown("¿Quieres comentar el desarrollo o proponer una colaboración?")
-       st.markdown("📩 **Correo directo:** [nhemesysgonzalez@gmail.com](mailto:nhemesysgonzalez@gmail.com) | 💬 **[Foro en GitHub](https://github.com/nhemesysgonzalez-stack/farmacia-marina-cuantica-vqe-/issues)**")
+    st.markdown("¿Quieres comentar el desarrollo o proponer una colaboración?")
+    st.markdown("📩 **Correo directo:** [nhemesysgonzalez@gmail.com](mailto:nhemesysgonzalez@gmail.com) | 💬 **[Foro en GitHub](https://github.com/nhemesysgonzalez-stack/farmacia-marina-cuantica-vqe-/issues)**")
