@@ -163,4 +163,5 @@ with col_f1:
     if st.button("👍 ¡Esta herramienta me ha resultado útil!"):
         st.toast("¡Muchas gracias por tu valoración! Seguimos innovando en Economía Azul.")
 with col_f2:
-    st.markdown("¿Quieres comentar cómo está desarrollado o proponer una colaboración? **[Déjame un mensaje en GitHub Discussions](https://github.com)**.")
+       st.markdown("¿Quieres comentar el desarrollo o proponer una colaboración?")
+       st.markdown("📩 **Correo directo:** [nhemesysgonzalez@gmail.com](mailto:nhemesysgonzalez@gmail.com) | 💬 **[Foro en GitHub](https://github.com/nhemesysgonzalez-stack/farmacia-marina-cuantica-vqe-/issues)**")
