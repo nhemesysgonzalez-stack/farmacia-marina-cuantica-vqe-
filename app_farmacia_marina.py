@@ -51,10 +51,10 @@ if st.button("🚀 Ejecutar Simulación Molecular VQE"):
             ("XX", interaccion_xx)
         ])
         
-        angulos = ParameterVector('theta', 2)
+        theta_0, theta_1 = ParameterVector('theta', 2)
         qc = QuantumCircuit(2)
-        qc.ry(angulos, 0)
-        qc.ry(angulos, 1)
+        qc.ry(theta_0, 0)
+        qc.ry(theta_1, 1)
         qc.cx(0, 1)
         
         estimador = StatevectorEstimator()
