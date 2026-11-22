@@ -62,7 +62,7 @@ if st.button("🚀 Ejecutar Simulación Molecular VQE"):
         
         def calcular_energia(valores):
             trabajo = estimador.run([(qc, hamiltoniano, valores)])
-            energia = float(trabajo.result().data.evs)
+            energia = float(next(iter(trabajo.result())).data.evs)
             historial_energia.append(energia)
             return energia
             
